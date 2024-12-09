@@ -1,0 +1,41 @@
+{
+  "name": "rem",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A toolkit for choco",
+  "author": "stella~",
+  "license": "ISC",
+  "homepage": "https://github.com//",
+  "keywords": [
+    "probot",
+    "github",
+    "probot-app"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "probot run ./lib/index.js",
+    "test": "vitest",
+    "format": "prettier --cache --write . --ignore-path .prettierignore"
+  },
+  "dependencies": {
+    "@atproto/api": "^0.13.19",
+    "@napi-rs/canvas": "^0.1.65",
+    "@octokit/rest": "^21.0.2",
+    "chalk": "^4.1.2",
+    "date-fns": "^4.1.0",
+    "prettier": "^3.4.2",
+    "probot": "^13.0.1"
+  },
+  "devDependencies": {
+    "@types/date-fns": "^2.5.3",
+    "@types/node": "^20.0.0",
+    "nock": "^14.0.0-beta.5",
+    "smee-client": "^2.0.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.3.1"
+  },
+  "engines": {
+    "node": ">= 18"
+  },
+  "type": "module"
+}
