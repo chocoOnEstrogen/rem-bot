@@ -1,12 +1,27 @@
 import { Probot } from 'probot'
 import { CommitData, createCommit } from './events/push.js'
 import { StatsService } from './services/stats.js'
+import { createConfig } from './utils/configParser.js'
+import fs from 'fs'
+import path from 'path'
 
 export default (app: Probot) => {
+
+	// Create the images directory if it doesn't exist
+	if (!fs.existsSync(path.join(process.cwd(), 'images'))) {
+		fs.mkdirSync(path.join(process.cwd(), 'images'), { recursive: true })
+	}
+
 	app.on('push', async (context) => {
 		const { payload } = context
 		const commits = payload.commits
 		const repository = payload.repository
+
+		// Check if it is a private repository
+		if (repository.private) {
+			console.log('Skipping private repository')
+			return
+		}
 
 		const owner = repository.owner.login || repository.owner.name
 
@@ -14,6 +29,14 @@ export default (app: Probot) => {
 			console.log('No owner found in payload')
 			return
 		}
+
+		const config = await createConfig(`${owner}/${repository.name}`)
+
+		if (!config.github.commits.postToBluesky) {
+			console.log(`Skipping commit push for ${repository.name} because commits are not enabled in the config`)
+			return
+		}
+
 		for (const commit of commits) {
 			try {
 				// Get commit data
@@ -66,9 +89,9 @@ export default (app: Probot) => {
 			}
 		}
 	})
+	
 
-	// Weekly stats generation
 	setInterval(async () => {
-		await StatsService.generateWeeklyStats(app, process.env.GITHUB_USERNAME)
+		await StatsService.generateWeeklyStats(app, process.env.GITHUB_USERNAME || '')
 	}, 7 * 24 * 60 * 60 * 1000) // Weekly
 }

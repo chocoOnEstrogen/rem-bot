@@ -3,6 +3,7 @@ import { createCanvas, GlobalFonts } from '@napi-rs/canvas'
 import { BlueskyService } from './bluesky.js'
 import Logger from '../classes/logger.js'
 import { format } from 'date-fns'
+import { createConfig } from '../utils/configParser.js'
 
 export class StatsService {
     static async generateWeeklyStats(app: Probot, username: string) {
@@ -24,7 +25,7 @@ export class StatsService {
             const { data: repos } = await github.repos.listForUser({
                 username,
                 sort: 'updated',
-                per_page: 100 // Adjust as needed
+                per_page: 100
             })
 
             // Initialize counters
@@ -32,20 +33,33 @@ export class StatsService {
             let totalIssues = 0
             let totalPRs = 0
             const dailyCommits = [0, 0, 0, 0, 0, 0, 0] // Last 7 days
+            let activeRepos = 0
 
             // Get stats for each repo
             await Promise.all(repos.map(async (repo) => {
                 try {
-                    // Get commits for the last week directly instead of activity stats
-                    const oneWeekAgo = new Date();
-                    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+                    // Check if stats are enabled for this repository
+                    const config = await createConfig(`${repo.owner.login}/${repo.name}`)
+                    // Check if the repository is private
+                    if (repo.private) {
+                        return // Skip this repository if it is private
+                    }
+                    // Check if the repository is disabled in the config
+                    if (!config.stats.enable) {
+                        return // Skip this repository if stats are disabled
+                    }
+
+                    activeRepos++ // Increment active repos counter
+                    
+                    const oneWeekAgo = new Date()
+                    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
                     
                     const [commits, issues, prs] = await Promise.all([
                         github.repos.listCommits({
                             owner: repo.owner.login,
                             repo: repo.name,
                             since: oneWeekAgo.toISOString(),
-                            per_page: 100 // Adjust if needed
+                            per_page: 100
                         }),
                         github.issues.listForRepo({
                             owner: repo.owner.login,
@@ -62,16 +76,16 @@ export class StatsService {
 
                     // Process commits by day
                     commits.data.forEach(commit => {
-                        const date = new Date(commit.commit.author?.date || commit.commit.committer?.date || '');
-                        const dayIndex = 6 - Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+                        const date = new Date(commit.commit.author?.date || commit.commit.committer?.date || '')
+                        const dayIndex = 6 - Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24))
                         if (dayIndex >= 0 && dayIndex < 7) {
-                            dailyCommits[dayIndex]++;
-                            totalCommits++;
+                            dailyCommits[dayIndex]++
+                            totalCommits++
                         }
-                    });
+                    })
 
-                    totalIssues += issues.data.length;
-                    totalPRs += prs.data.length;
+                    totalIssues += issues.data.length
+                    totalPRs += prs.data.length
                 } catch (error) {
                     Logger.log('error', `Failed to get stats for ${repo.name}: ${error}`, 'StatsService')
                 }
@@ -105,7 +119,7 @@ export class StatsService {
             // Repository count
             ctx.fillStyle = '#58a6ff'
             ctx.font = `20px "${mainFont}"`
-            ctx.fillText(`Active repositories: ${repos.length}`, 40, 160)
+            ctx.fillText(`Active repositories: ${activeRepos}/${repos.length}`, 40, 160)
 
             // Stats Cards
             const cards = [
@@ -255,7 +269,7 @@ export class StatsService {
             // Post to Bluesky
             const imageBuffer = canvas.toBuffer('image/png')
             await BlueskyService.createPost({
-                text: `📊 Weekly Activity for https://github.com/${username}\n\nWant to see your own? https://github.com/chocoOnEstrogen/rem-bot`,
+                text: `📊 Weekly Activity for https://github.com/${username}\n\nTracking ${activeRepos} active repositories out of ${repos.length} total.\nWant to see your own? https://github.com/chocoOnEstrogen/rem-bot`,
                 tags: ['github', 'stats', 'developer'],
                 images: [{
                     image: `data:image/png;base64,${imageBuffer.toString('base64')}`,

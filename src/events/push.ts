@@ -47,17 +47,6 @@ function getBestFont() {
 	return 'FreeSans' // Fallback
 }
 
-// Helper function for monospace font
-function getMonospaceFont() {
-	const monoFonts = ['Source Code Pro', 'FreeMono']
-
-	for (const font of monoFonts) {
-		if (systemFonts.some((f) => f.family === font)) {
-			return font
-		}
-	}
-	return 'FreeMono' // Fallback
-}
 
 // Helper function to truncate text with ellipsis
 function truncateText(ctx: any, text: string, maxWidth: number) {
@@ -95,7 +84,6 @@ async function createCommit(commit: CommitData, files: any[]) {
 	const canvas = createCanvas(1200, Math.max(800, 300 + files.length * 300))
 	const ctx = canvas.getContext('2d')
 	const mainFont = getBestFont()
-	const codeFont = getMonospaceFont()
 
 	// Load author avatar
 	let avatarImage
@@ -202,21 +190,19 @@ async function createCommit(commit: CommitData, files: any[]) {
 
 	// Files section
 	for (const file of files) {
-		const parsedPatch = parsePatch(file.patch || '')
-
 		// File card with enhanced styling
 		drawRoundedRect(
 			ctx,
 			20,
 			yOffset,
 			canvas.width - 40,
-			260,
+			100,
 			10,
 			'#161b22',
-			'#30363d',
+			'#30363d'
 		)
 
-		// File name (without icon)
+		// File name
 		ctx.fillStyle = '#58a6ff'
 		ctx.font = `bold 20px "${mainFont}"`
 		ctx.fillText(file.filename, 40, yOffset + 30)
@@ -244,38 +230,7 @@ async function createCommit(commit: CommitData, files: any[]) {
 		ctx.fillStyle = '#ffffff'
 		ctx.fillText(file.status, 235, statsY + 5)
 
-		// Draw diff with enhanced styling
-		if (parsedPatch.changes) {
-			// Hunk header
-			if (parsedPatch.hunk) {
-				ctx.fillStyle = '#8b949e'
-				ctx.font = `14px "${codeFont}"`
-				ctx.fillText(parsedPatch.hunk, 40, statsY + 35)
-			}
-
-			// Changes with line numbers
-			parsedPatch.changes.forEach((change, index) => {
-				const lineY = statsY + 60 + index * 25
-
-				// Line background
-				const bgColor = getChangeBackgroundColor(change.type)
-				drawRoundedRect(ctx, 40, lineY - 15, canvas.width - 80, 25, 5, bgColor)
-
-				// Line number
-				ctx.fillStyle = '#484f58'
-				ctx.font = `14px "${codeFont}"`
-				ctx.fillText(String(index + 1).padStart(3, ' '), 50, lineY + 5)
-
-				// Line content
-				ctx.fillStyle = getChangeTextColor(change.type)
-				ctx.font = `16px "${codeFont}"`
-				const prefix = getChangePrefix(change.type)
-				const content = truncateText(ctx, change.content, canvas.width - 150)
-				ctx.fillText(`${prefix} ${content}`, 90, lineY + 5)
-			})
-		}
-
-		yOffset += 280
+		yOffset += 120
 	}
 
     const imageBuffer = canvas.toBuffer('image/png')
@@ -308,101 +263,22 @@ async function createCommit(commit: CommitData, files: any[]) {
         }]
     })
 
+	// Delete the image file
+	fs.unlinkSync(`./images/${commit.id}.png`)
+
     // Return the canvas for compatibility with existing code
     return canvas
 }
 
-// Helper function to parse patch
-function parsePatch(patch: string) {
-	const lines = patch.split('\n')
-	const header = lines[0]
-	const match = header.match(/@@ -(\d+),(\d+) \+(\d+),(\d+) @@/)
-
-	if (!match) {
-		return {
-			hunk: null,
-			oldRange: { start: 0, lines: 0 },
-			newRange: { start: 0, lines: 0 },
-			changes: lines.slice(1).map((line) => ({
-				type: 'context',
-				content: line,
-			})),
-		}
-	}
-
-	const [oldStart, oldLines, newStart, newLines] = match.slice(1).map(Number)
-
-	const changes = lines.slice(1).map((line) => {
-		if (line.startsWith('+')) {
-			return {
-				type: 'addition',
-				content: line.slice(1),
-			}
-		} else if (line.startsWith('-')) {
-			return {
-				type: 'deletion',
-				content: line.slice(1),
-			}
-		} else {
-			return {
-				type: 'context',
-				content: line.slice(1),
-			}
-		}
-	})
-
-	return {
-		hunk: header,
-		oldRange: {
-			start: oldStart,
-			lines: oldLines,
-		},
-		newRange: {
-			start: newStart,
-			lines: newLines,
-		},
-		changes,
-	}
-}
-
+// Keep only this status-related helper function
 function getStatusColor(status: string): string {
 	const colors: { [key: string]: string } = {
 		added: '#238636',
-		modified: '#9e6a03',
-		removed: '#da3633',
-		renamed: '#58a6ff',
+			modified: '#9e6a03',
+			removed: '#da3633',
+			renamed: '#58a6ff',
 	}
 	return colors[status] || '#8b949e'
-}
-
-function getChangeBackgroundColor(type: string): string {
-	return (
-		{
-			addition: '#1f3428',
-			deletion: '#3c1f1f',
-			context: '#1c2026',
-		}[type] || '#1c2026'
-	)
-}
-
-function getChangeTextColor(type: string): string {
-	return (
-		{
-			addition: '#7ee787',
-			deletion: '#ff7b72',
-			context: '#8b949e',
-		}[type] || '#8b949e'
-	)
-}
-
-function getChangePrefix(type: string): string {
-	return (
-		{
-			addition: '+',
-			deletion: '-',
-			context: ' ',
-		}[type] || ' '
-	)
 }
 
 export { createCommit, CommitData, CommitAuthor }

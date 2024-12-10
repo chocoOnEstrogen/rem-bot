@@ -10,9 +10,17 @@
 
 ### 📊 Statistics & Analytics
 - **Weekly Activity Reports**: Automated stats generation for users and repositories
+  - Repository activity tracking
+  - Commit history visualization
+  - Issue and PR statistics
+  - Configurable per repository
 
 ### 🔔 Notifications
 - **Commit Updates**: Real-time commit notifications on Bluesky
+  - Rich visual commit cards
+  - File change statistics
+  - Author information
+  - Configurable per repository
 
 ## 🚀 Getting Started
 
@@ -48,6 +56,7 @@ BLUESKY_PASSWORD=your_password
 
 # GitHub Configuration
 GITHUB_USERNAME=your_username
+GITHUB_TOKEN=your_token
 ```
 
 4. **Start the bot**
@@ -69,10 +78,27 @@ docker run -d \
   -e WEBHOOK_SECRET=<webhook-secret> \
   -e BLUESKY_IDENTIFIER=<identifier> \
   -e BLUESKY_PASSWORD=<password> \
+  -e GITHUB_USERNAME=<username> \
+  -e GITHUB_TOKEN=<token> \
   rem-bot
 ```
 
-## 📝 Usage
+## 📝 Configuration
+
+### Repository Configuration
+Create a `rem.conf` file in your repository's root to customize the bot's behavior:
+
+```conf
+# GitHub related settings
+[github]
+# Whether to post commits to Bluesky
+commits.postToBluesky=true
+
+# Stats related settings
+[stats]
+# Whether to include this repository in weekly stats
+enable=true
+```
 
 ### Setting Up the GitHub App
 
